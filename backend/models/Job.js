@@ -4,6 +4,15 @@ const mongoose = require('mongoose');
 // not_started -> in_progress <-> stopped -> submitted -> under_review <-> approved
 const JOB_STATUSES = ['not_started', 'in_progress', 'stopped', 'submitted', 'under_review', 'approved'];
 
+// One continuous period of work. A new segment starts on Start/Resume and closes on Stop.
+// Times are always set by the server clock, never sent from the technician's device.
+const timeSegmentSchema = new mongoose.Schema(
+    {
+        start: { type: Date, required: true },
+        end: { type: Date, default: null },
+    },
+    { _id: false }
+);
 const jobSchema = new mongoose.Schema(
     {
         jobNumber: { type: String, required: true, unique: true, trim: true },
@@ -14,6 +23,7 @@ const jobSchema = new mongoose.Schema(
         labourRate: { type: Number, required: true, min: 0.01 },  // AUD per 15-minute block, ex GST
         status: { type: String, enum: JOB_STATUSES, default: 'not_started' },
         notes: { type: String, default: '' },
+        timeSegments: { type: [timeSegmentSchema], default: [] },
         createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     },
     { timestamps: true }

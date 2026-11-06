@@ -1,6 +1,7 @@
 const Job = require('../models/Job');
 const User = require('../models/User');
 const { validateJobInput } = require('../utils/validateJob');
+const { TIMER_TRANSITIONS, checkTransition } = require('../utils/jobTransitions');
 
 // POST /api/jobs  (Administrator only)
 // Creates a job from the booking system details and assigns it to a technician.
@@ -59,5 +60,50 @@ const getMyJobs = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+// Fields a technician may see on a single job (no pricing)
+const TECHNICIAN_FIELDS = 'jobNumber customerName address status notes timeSegments updatedAt';
 
-module.exports = { createJob, getMyJobs };
+// GET /api/jobs/:id  (Standard User only)
+// A technician can open only a job assigned to them. Anyone else's job looks like it doesn't exist.
+const getMyJob = async (req, res) => {
+    try {
+        const job = await Job.findOne({ _id: req.params.id, technician: req.user.id })
+            .select(TECHNICIAN_FIELDS)
+            .catch(() => null);
+        if (!job) return res.status(404).json({ message: 'Job not found' });
+        res.json({ job, serverTime: new Date() });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// POST /api/jobs/:id/start | /stop | /resume  (Standard User only)
+// Times come from the server clock. The status check is part of the database update itself,
+// so two quick taps (or two devices) can't apply the same action twice.
+const timerAction = (action) => async (req, res) => {
+    const rule = TIMER_TRANSITIONS[action];
+    const now = new Date();
+    const filter = { _id: req.params.id, technician: req.user.id, status: rule.from };
+
+    const update = action === 'stop'
+        ? { $set: { status: rule.to, 'timeSegments.$[open].end': now } }
+        : { $set: { status: rule.to }, $push: { timeSegments: { start: now, end: null } } };
+    const options = action === 'stop'
+        ? { new: true, arrayFilters: [{ 'open.end': null }] }
+        : { new: true };
+
+    try {
+        const job = await Job.findOneAndUpdate(filter, update, options).select(TECHNICIAN_FIELDS).catch(() => null);
+        if (job) return res.json({ job, serverTime: now });
+
+        // Nothing updated: either the job isn't theirs, or it's in the wrong status
+        const existing = await Job.findOne({ _id: req.params.id, technician: req.user.id }).catch(() => null);
+        if (!existing) return res.status(404).json({ message: 'Job not found' });
+        const { error } = checkTransition(action, existing.status);
+        return res.status(409).json({ message: error });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { createJob, getMyJobs, getMyJob, timerAction };
