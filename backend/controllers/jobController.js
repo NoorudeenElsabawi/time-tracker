@@ -2,6 +2,7 @@ const Job = require('../models/Job');
 const User = require('../models/User');
 const { validateJobInput } = require('../utils/validateJob');
 const { TIMER_TRANSITIONS, checkTransition } = require('../utils/jobTransitions');
+const { calculateCost } = require('../utils/billing');
 
 // POST /api/jobs  (Administrator only)
 // Creates a job from the booking system details and assigns it to a technician.
@@ -113,4 +114,19 @@ const timerAction = (action) => async (req, res) => {
     }
 };
 
-module.exports = { createJob, getMyJobs, getMyJob, timerAction };
+// GET /api/jobs/:id for an Administrator: the full job, including pricing and the calculated cost.
+const getJobForAdmin = async (req, res) => {
+    try {
+        const job = await Job.findById(req.params.id).populate('technician', 'name email').catch(() => null);
+        if (!job) return res.status(404).json({ message: 'Job not found' });
+        const now = new Date();
+        res.json({ job, cost: calculateCost(job, now), serverTime: now });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// GET /api/jobs/:id: Administrators see the full job with cost; technicians see only their own job, without pricing.
+const getJob = (req, res) => (req.user.role === 'admin' ? getJobForAdmin(req, res) : getMyJob(req, res));
+
+module.exports = { createJob, getMyJobs, getMyJob, getJob, timerAction };

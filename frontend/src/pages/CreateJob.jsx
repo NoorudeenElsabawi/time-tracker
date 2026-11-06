@@ -80,7 +80,9 @@ const CreateJob = () => {
       const response = await axiosInstance.post('/api/jobs', form, {
         headers: { Authorization: `Bearer ${user.token}` },
       });
-      navigate('/admin/jobs', { state: { success: `Job #${response.data.jobNumber} created` } });
+            navigate('/admin/jobs', {
+        state: { success: `Job #${response.data.jobNumber} created`, jobId: response.data._id },
+      });
     } catch (err) {
       setErrors(err.response?.data?.errors || {});
       setFormError(err.response?.data?.message || 'Could not save the job. Try again.');
