@@ -7,6 +7,8 @@ import MyJobs from './pages/MyJobs';
 import AdminJobs from './pages/AdminJobs';
 import CreateJob from './pages/CreateJob';
 import JobTimer from './pages/JobTimer';
+import AdminJobReview from './pages/AdminJobReview';
+
 import { useAuth, homePathFor } from './context/AuthContext';
 
 function App() {
@@ -23,6 +25,7 @@ function App() {
         <Route path="/my-jobs/:id" element={<RequireRole role="standard"><JobTimer /></RequireRole>} />
         <Route path="/admin/jobs" element={<RequireRole role="admin"><AdminJobs /></RequireRole>} />
         <Route path="/admin/jobs/new" element={<RequireRole role="admin"><CreateJob /></RequireRole>} />
+        <Route path="/admin/jobs/:id" element={<RequireRole role="admin"><AdminJobReview /></RequireRole>} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

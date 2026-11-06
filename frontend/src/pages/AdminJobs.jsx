@@ -11,7 +11,10 @@ const AdminJobs = () => {
     <div className="container mx-auto mt-10 px-6">
       {success && (
         <div className="mb-4 p-3 rounded border border-green-600 bg-green-50 text-green-800" role="status">
-          ✓ {success}
+                    ✓ {success}
+          {location.state?.jobId && (
+            <Link to={`/admin/jobs/${location.state.jobId}`} className="ml-2 underline">View job</Link>
+          )}
         </div>
       )}
       <div className="flex justify-between items-center mb-2">
