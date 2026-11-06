@@ -7,7 +7,8 @@ const generateToken = (id) => {
 };
 
 const loginUser = async (req, res) => {
-    const { email, password } = req.body;
+    const email = (req.body.email || '').trim().toLowerCase();
+    const { password } = req.body;
     if (!email || !password) {
         return res.status(400).json({ message: 'Enter your email and password' });
     }
