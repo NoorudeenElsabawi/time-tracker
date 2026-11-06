@@ -1,19 +1,23 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
-import Register from './pages/Register';
 import Profile from './pages/Profile';
-import Tasks from './pages/Tasks';
+import MyJobs from './pages/MyJobs';
+import AdminJobs from './pages/AdminJobs';
+import { useAuth, homePathFor } from './context/AuthContext';
 
 function App() {
+  const { user } = useAuth();
+
   return (
     <Router>
       <Navbar />
       <Routes>
+        <Route path="/" element={<Navigate to={user ? homePathFor(user.role) : '/login'} />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="/tasks" element={<Tasks />} />
+        <Route path="/my-jobs" element={<MyJobs />} />
+        <Route path="/admin/jobs" element={<AdminJobs />} />
       </Routes>
     </Router>
   );

@@ -1,10 +1,9 @@
-
 const express = require('express');
-const { registerUser, loginUser, updateUserProfile, getProfile } = require('../controllers/authController');
+const { loginUser, updateUserProfile, getProfile } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const router = express.Router();
 
-router.post('/register', registerUser);
+// Public registration removed: accounts are created by the support team (Administrator).
 router.post('/login', loginUser);
 router.get('/profile', protect, getProfile);
 router.put('/profile', protect, updateUserProfile);
