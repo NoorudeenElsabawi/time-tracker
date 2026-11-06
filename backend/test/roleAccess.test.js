@@ -48,3 +48,23 @@ describe('Role-based access to admin routes', () => {
         expect(res.body).to.have.length(1);
     });
 });
+
+
+describe('Role-based access to job routes', () => {
+    afterEach(() => sinon.restore());
+
+    it('blocks a Standard User from creating a job (403)', async () => {
+        stubLoggedInUser({ id: 'tech1', role: 'standard' });
+        const res = await chai.request(app).post('/api/jobs').set('Authorization', tokenFor('tech1')).send({});
+        expect(res).to.have.status(403);
+    });
+
+    it('returns field errors to an Administrator for invalid input (400)', async () => {
+        stubLoggedInUser({ id: 'admin1', role: 'admin' });
+        const res = await chai.request(app).post('/api/jobs').set('Authorization', tokenFor('admin1'))
+            .send({ jobNumber: '1239', calloutFee: '-20' });
+        expect(res).to.have.status(400);
+        expect(res.body.errors.calloutFee).to.equal('Must be a positive number');
+        expect(res.body.errors.customerName).to.equal('Customer name is required');
+    });
+});

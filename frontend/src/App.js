@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Profile from './pages/Profile';
 import MyJobs from './pages/MyJobs';
 import AdminJobs from './pages/AdminJobs';
+import CreateJob from './pages/CreateJob';
 import { useAuth, homePathFor } from './context/AuthContext';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
         <Route path="/profile" element={<RequireRole><Profile /></RequireRole>} />
         <Route path="/my-jobs" element={<RequireRole role="standard"><MyJobs /></RequireRole>} />
         <Route path="/admin/jobs" element={<RequireRole role="admin"><AdminJobs /></RequireRole>} />
+        <Route path="/admin/jobs/new" element={<RequireRole role="admin"><CreateJob /></RequireRole>} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
