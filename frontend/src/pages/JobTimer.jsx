@@ -29,6 +29,8 @@ const JobTimer = () => {
   const [job, setJob] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirmingSubmit, setConfirmingSubmit] = useState(false);
+  const [justSubmitted, setJustSubmitted] = useState(false);
   // Difference between the server clock and this device's clock, so the display matches server time
   const [clockOffset, setClockOffset] = useState(0);
   const [now, setNow] = useState(Date.now());
@@ -68,10 +70,12 @@ const JobTimer = () => {
       const response = await axiosInstance.post(`/api/jobs/${id}/${action}`, {}, authHeader);
       applyResponse(response.data);
       setNow(Date.now());
+      if (action === 'submit') setJustSubmitted(true);
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong. Try again.');
     } finally {
       setBusy(false);
+      setConfirmingSubmit(false);
     }
   };
 
@@ -127,10 +131,47 @@ const JobTimer = () => {
             Stop timer
           </button>
         )}
-        {job.status === 'stopped' && (
-          <button onClick={() => runAction('resume')} disabled={busy} className={`${bigButton} bg-green-600 hover:bg-green-700`}>
-            Resume
-          </button>
+        {job.status === 'stopped' && !confirmingSubmit && (
+          <div className="flex gap-3">
+            <button onClick={() => runAction('resume')} disabled={busy}
+              className="flex-1 py-4 rounded-lg text-lg font-semibold border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-60">
+              Resume
+            </button>
+            <button onClick={() => setConfirmingSubmit(true)} disabled={busy}
+              className={`flex-1 ${bigButton} bg-blue-600 hover:bg-blue-700`}>
+              Submit job
+            </button>
+          </div>
+        )}
+        {job.status === 'stopped' && confirmingSubmit && (
+          <div className="bg-white border border-blue-300 rounded-xl p-4">
+            <p className="font-medium">Submit this job?</p>
+            <p className="text-sm text-gray-500 mt-1">
+              You won&apos;t be able to change the time or resume the timer after submitting.
+            </p>
+            <div className="flex gap-3 mt-3">
+              <button onClick={() => setConfirmingSubmit(false)} disabled={busy}
+                className="flex-1 py-3 rounded-lg border border-slate-300 bg-white">
+                Cancel
+              </button>
+              <button onClick={() => runAction('submit')} disabled={busy}
+                className="flex-1 py-3 rounded-lg text-white font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-60">
+                {busy ? 'Submitting…' : 'Yes, submit'}
+              </button>
+            </div>
+          </div>
+        )}
+        {['submitted', 'under_review', 'approved'].includes(job.status) && (
+          <div className="flex flex-col gap-3">
+            <div className="p-3 rounded border border-green-600 bg-green-50 text-green-800" role="status">
+              {justSubmitted
+                ? '✓ Job submitted. The support team will review your time.'
+                : `✓ Submitted${job.submittedAt ? ` at ${formatClock(job.submittedAt)}` : ''}. This job is locked.`}
+            </div>
+            <Link to="/my-jobs" className="block text-center py-3 rounded-lg border border-slate-300 bg-white">
+              Back to my jobs
+            </Link>
+          </div>
         )}
       </div>
 
