@@ -61,7 +61,7 @@ const getMyJobs = async (req, res) => {
     }
 };
 // Fields a technician may see on a single job (no pricing)
-const TECHNICIAN_FIELDS = 'jobNumber customerName address status notes timeSegments updatedAt';
+const TECHNICIAN_FIELDS = 'jobNumber customerName address status notes timeSegments submittedAt updatedAt';
 
 // GET /api/jobs/:id  (Standard User only)
 // A technician can open only a job assigned to them. Anyone else's job looks like it doesn't exist.
@@ -85,12 +85,19 @@ const timerAction = (action) => async (req, res) => {
     const now = new Date();
     const filter = { _id: req.params.id, technician: req.user.id, status: rule.from };
 
-    const update = action === 'stop'
-        ? { $set: { status: rule.to, 'timeSegments.$[open].end': now } }
-        : { $set: { status: rule.to }, $push: { timeSegments: { start: now, end: null } } };
-    const options = action === 'stop'
-        ? { new: true, arrayFilters: [{ 'open.end': null }] }
-        : { new: true };
+       let update;
+    let options = { new: true };
+    if (action === 'stop') {
+        // Close the open segment
+        update = { $set: { status: rule.to, 'timeSegments.$[open].end': now } };
+        options = { new: true, arrayFilters: [{ 'open.end': null }] };
+    } else if (action === 'submit') {
+        // Only allowed from Stopped, so there is never an open segment; the job is now locked
+        update = { $set: { status: rule.to, submittedAt: now } };
+    } else {
+        // start / resume: open a new segment
+        update = { $set: { status: rule.to }, $push: { timeSegments: { start: now, end: null } } };
+    }
 
     try {
         const job = await Job.findOneAndUpdate(filter, update, options).select(TECHNICIAN_FIELDS).catch(() => null);

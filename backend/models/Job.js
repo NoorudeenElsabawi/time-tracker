@@ -24,6 +24,7 @@ const jobSchema = new mongoose.Schema(
         status: { type: String, enum: JOB_STATUSES, default: 'not_started' },
         notes: { type: String, default: '' },
         timeSegments: { type: [timeSegmentSchema], default: [] },
+        submittedAt: { type: Date, default: null },
         createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     },
     { timestamps: true }
