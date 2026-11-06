@@ -46,4 +46,18 @@ const createJob = async (req, res) => {
     }
 };
 
-module.exports = { createJob };
+// GET /api/jobs/mine  (Standard User only)
+// Returns only the jobs assigned to the logged-in technician.
+// Cost fields are left out: technicians do not see pricing.
+const getMyJobs = async (req, res) => {
+    try {
+        const jobs = await Job.find({ technician: req.user.id })
+            .select('jobNumber customerName address status updatedAt')
+            .sort({ updatedAt: -1 });
+        res.json(jobs);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { createJob, getMyJobs };
