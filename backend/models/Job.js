@@ -25,6 +25,9 @@ const jobSchema = new mongoose.Schema(
         notes: { type: String, default: '' },
         timeSegments: { type: [timeSegmentSchema], default: [] },
         submittedAt: { type: Date, default: null },
+        reviewStartedAt: { type: Date, default: null },
+        approvedAt: { type: Date, default: null },
+        approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
         createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     },
     { timestamps: true }

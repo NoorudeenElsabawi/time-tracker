@@ -2,7 +2,9 @@ const Job = require('../models/Job');
 const { JOB_STATUSES } = require('../models/Job');
 const User = require('../models/User');
 const { validateJobInput } = require('../utils/validateJob');
-const { TIMER_TRANSITIONS, checkTransition } = require('../utils/jobTransitions');
+const {
+    TIMER_TRANSITIONS, checkTransition, ADMIN_TRANSITIONS, checkAdminTransition,
+} = require('../utils/jobTransitions');
 const { calculateCost } = require('../utils/billing');
 
 // POST /api/jobs  (Administrator only)
@@ -62,6 +64,7 @@ const getMyJobs = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
 // Fields a technician may see on a single job (no pricing)
 const TECHNICIAN_FIELDS = 'jobNumber customerName address status notes timeSegments submittedAt updatedAt';
 
@@ -79,7 +82,7 @@ const getMyJob = async (req, res) => {
     }
 };
 
-// POST /api/jobs/:id/start | /stop | /resume  (Standard User only)
+// POST /api/jobs/:id/start | /stop | /resume | /submit  (Standard User only)
 // Times come from the server clock. The status check is part of the database update itself,
 // so two quick taps (or two devices) can't apply the same action twice.
 const timerAction = (action) => async (req, res) => {
@@ -87,7 +90,7 @@ const timerAction = (action) => async (req, res) => {
     const now = new Date();
     const filter = { _id: req.params.id, technician: req.user.id, status: rule.from };
 
-       let update;
+    let update;
     let options = { new: true };
     if (action === 'stop') {
         // Close the open segment
@@ -115,10 +118,16 @@ const timerAction = (action) => async (req, res) => {
     }
 };
 
+// Names to fill in when an Administrator views a job
+const ADMIN_POPULATE = [
+    { path: 'technician', select: 'name email' },
+    { path: 'approvedBy', select: 'name' },
+];
+
 // GET /api/jobs/:id for an Administrator: the full job, including pricing and the calculated cost.
 const getJobForAdmin = async (req, res) => {
     try {
-        const job = await Job.findById(req.params.id).populate('technician', 'name email').catch(() => null);
+        const job = await Job.findById(req.params.id).populate(ADMIN_POPULATE).catch(() => null);
         if (!job) return res.status(404).json({ message: 'Job not found' });
         const now = new Date();
         res.json({ job, cost: calculateCost(job, now), serverTime: now });
@@ -151,4 +160,29 @@ const getAllJobs = async (req, res) => {
     }
 };
 
-module.exports = { createJob, getAllJobs, getMyJobs, getMyJob, getJob, timerAction };
+// POST /api/jobs/:id/review | /approve  (Administrator only)
+// review: Submitted -> Under review.  approve: Under review -> Approved (ready for invoicing).
+// As with the timer, the status check is part of the update, so a job can't be approved twice.
+const adminAction = (action) => async (req, res) => {
+    const rule = ADMIN_TRANSITIONS[action];
+    const now = new Date();
+    const changes = action === 'review'
+        ? { status: rule.to, reviewStartedAt: now }
+        : { status: rule.to, approvedAt: now, approvedBy: req.user.id };
+
+    try {
+        const job = await Job.findOneAndUpdate({ _id: req.params.id, status: rule.from }, { $set: changes }, { new: true })
+            .populate(ADMIN_POPULATE)
+            .catch(() => null);
+        if (job) return res.json({ job, cost: calculateCost(job, now), serverTime: now });
+
+        const existing = await Job.findById(req.params.id).catch(() => null);
+        if (!existing) return res.status(404).json({ message: 'Job not found' });
+        const { error } = checkAdminTransition(action, existing.status);
+        return res.status(409).json({ message: error });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { createJob, getAllJobs, getMyJobs, getMyJob, getJob, timerAction, adminAction };

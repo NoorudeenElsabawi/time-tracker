@@ -21,4 +21,17 @@ const checkTransition = (action, currentStatus) => {
     return { ok: true, to: rule.to };
 };
 
-module.exports = { TIMER_TRANSITIONS, LOCKED_STATUSES, checkTransition };
+// Review actions for an Administrator (support team), also from the state machine.
+const ADMIN_TRANSITIONS = {
+    review: { from: 'submitted', to: 'under_review', error: 'Only a submitted job can be put under review' },
+    approve: { from: 'under_review', to: 'approved', error: 'Start the review before approving this job' },
+};
+
+const checkAdminTransition = (action, currentStatus) => {
+    const rule = ADMIN_TRANSITIONS[action];
+    if (!rule) return { ok: false, error: 'Unknown action' };
+    if (currentStatus !== rule.from) return { ok: false, error: rule.error };
+    return { ok: true, to: rule.to };
+};
+
+module.exports = { TIMER_TRANSITIONS, LOCKED_STATUSES, checkTransition, ADMIN_TRANSITIONS, checkAdminTransition };
