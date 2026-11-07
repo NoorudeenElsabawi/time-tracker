@@ -21,6 +21,7 @@ const Navbar = () => {
             <Link to={homePathFor(user.role)} className="mr-4">
               {user.role === 'admin' ? 'Jobs' : 'My jobs'}
             </Link>
+            {user.role === 'admin' && <Link to="/admin/users" className="mr-4">Users</Link>}
             <span className="mr-4 hidden sm:inline">{user.name}</span>
             <button
               onClick={handleLogout}
