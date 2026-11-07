@@ -13,14 +13,15 @@ const formatClock = (date) =>
 const segmentMinutes = (seg) =>
   seg.end ? Math.floor((new Date(seg.end) - new Date(seg.start)) / 60000) : null;
 
-// Administrator view of a single job, with the calculated cost (SCRUM-29).
-// Review and approve actions are added in SCRUM-24.
+// Administrator view of a single job: details, time, cost (SCRUM-29) and review/approve (SCRUM-24).
 const AdminJobReview = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const [job, setJob] = useState(null);
   const [cost, setCost] = useState(null);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     const loadJob = async () => {
@@ -36,6 +37,24 @@ const AdminJobReview = () => {
     };
     loadJob();
   }, [id, user]);
+
+  const runAction = async (action) => {
+    setBusy(true);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await axiosInstance.post(`/api/jobs/${id}/${action}`, {}, {
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+      setJob(response.data.job);
+      setCost(response.data.cost);
+      setSuccess(action === 'approve' ? "Job approved. It's ready for invoicing." : 'Review started.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Something went wrong. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (!job) {
     return (
@@ -58,6 +77,12 @@ const AdminJobReview = () => {
 
   return (
     <div className="container mx-auto mt-8 px-6 pb-10 max-w-5xl">
+      {success && (
+        <div className="mb-4 p-3 rounded border border-green-600 bg-green-50 text-green-800" role="status">✓ {success}</div>
+      )}
+      {error && (
+        <div className="mb-4 p-3 rounded border border-red-600 bg-red-50 text-red-700" role="alert">{error}</div>
+      )}
       <Link to="/admin/jobs" className="text-blue-600">‹ Back to jobs</Link>
       <div className="flex items-center gap-3 mt-2 mb-4">
         <h1 className="text-2xl font-bold">Job #{job.jobNumber}</h1>
@@ -116,6 +141,33 @@ const AdminJobReview = () => {
       <h2 className="font-medium mt-4 mb-2">Technician notes</h2>
       <div className="bg-white border border-slate-200 rounded-xl p-4 text-gray-700 min-h-[4rem]">
         {job.notes || <span className="text-gray-400">No notes added.</span>}
+      </div>
+
+      <div className="flex flex-wrap justify-end items-center gap-3 mt-6">
+        {job.status === 'approved' && (
+          <p className="text-sm text-gray-500 mr-auto">
+            Approved{job.approvedBy?.name ? ` by ${job.approvedBy.name}` : ''}
+            {job.approvedAt ? ` on ${new Date(job.approvedAt).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' })}` : ''}
+          </p>
+        )}
+        {['not_started', 'in_progress', 'stopped'].includes(job.status) && (
+          <p className="text-sm text-gray-500 mr-auto">The technician hasn&apos;t submitted this job yet.</p>
+        )}
+        {job.status === 'submitted' && (
+          <button onClick={() => runAction('review')} disabled={busy}
+            className="px-4 py-2 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-60">
+            Start review
+          </button>
+        )}
+        {job.status === 'under_review' && (
+          <button onClick={() => runAction('approve')} disabled={busy}
+            className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60">
+            {busy ? 'Approving…' : 'Approve'}
+          </button>
+        )}
+        {job.status === 'approved' && (
+          <Link to="/admin/jobs" className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Back to jobs</Link>
+        )}
       </div>
     </div>
   );
