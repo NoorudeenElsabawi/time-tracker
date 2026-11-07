@@ -1,4 +1,5 @@
 const Job = require('../models/Job');
+const { JOB_STATUSES } = require('../models/Job');
 const User = require('../models/User');
 const { validateJobInput } = require('../utils/validateJob');
 const { TIMER_TRANSITIONS, checkTransition } = require('../utils/jobTransitions');
@@ -129,4 +130,25 @@ const getJobForAdmin = async (req, res) => {
 // GET /api/jobs/:id: Administrators see the full job with cost; technicians see only their own job, without pricing.
 const getJob = (req, res) => (req.user.role === 'admin' ? getJobForAdmin(req, res) : getMyJob(req, res));
 
-module.exports = { createJob, getMyJobs, getMyJob, getJob, timerAction };
+// GET /api/jobs?status=submitted  (Administrator only)
+// Every job with its technician's name, newest activity first. Optional status filter.
+const getAllJobs = async (req, res) => {
+    const filter = {};
+    if (req.query.status) {
+        if (!JOB_STATUSES.includes(req.query.status)) {
+            return res.status(400).json({ message: `Status must be one of: ${JOB_STATUSES.join(', ')}` });
+        }
+        filter.status = req.query.status;
+    }
+    try {
+        const jobs = await Job.find(filter)
+            .select('jobNumber customerName address technician status updatedAt')
+            .populate('technician', 'name')
+            .sort({ updatedAt: -1 });
+        res.json(jobs);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { createJob, getAllJobs, getMyJobs, getMyJob, getJob, timerAction };
