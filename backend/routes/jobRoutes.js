@@ -1,6 +1,6 @@
 const express = require('express');
 const {
-    createJob, getAllJobs, getMyJobs, getJob, updateJob, timerAction, adminAction,
+    createJob, getAllJobs, getMyJobs, getJob, updateJob, deleteJob, timerAction, adminAction,
 } = require('../controllers/jobController');
 const { protect, adminOnly, requireRole } = require('../middleware/authMiddleware');
 const router = express.Router();
@@ -12,6 +12,7 @@ router.post('/', protect, adminOnly, createJob);
 router.get('/mine', protect, technicianOnly, getMyJobs);
 router.get('/:id', protect, getJob);
 router.put('/:id', protect, adminOnly, updateJob);
+router.delete('/:id', protect, adminOnly, deleteJob);
 router.post('/:id/start', protect, technicianOnly, timerAction('start'));
 router.post('/:id/stop', protect, technicianOnly, timerAction('stop'));
 router.post('/:id/resume', protect, technicianOnly, timerAction('resume'));
