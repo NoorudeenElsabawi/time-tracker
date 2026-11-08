@@ -8,6 +8,7 @@ import AdminJobs from './pages/AdminJobs';
 import CreateJob from './pages/CreateJob';
 import JobTimer from './pages/JobTimer';
 import AdminJobReview from './pages/AdminJobReview';
+import EditJob from './pages/EditJob';
 import AdminUsers from './pages/AdminUsers';
 import CreateUser from './pages/CreateUser';
 import EditUser from './pages/EditUser';
@@ -29,6 +30,7 @@ function App() {
         <Route path="/admin/jobs" element={<RequireRole role="admin"><AdminJobs /></RequireRole>} />
         <Route path="/admin/jobs/new" element={<RequireRole role="admin"><CreateJob /></RequireRole>} />
         <Route path="/admin/jobs/:id" element={<RequireRole role="admin"><AdminJobReview /></RequireRole>} />
+        <Route path="/admin/jobs/:id/edit" element={<RequireRole role="admin"><EditJob /></RequireRole>} />
         <Route path="/admin/users" element={<RequireRole role="admin"><AdminUsers /></RequireRole>} />
         <Route path="/admin/users/new" element={<RequireRole role="admin"><CreateUser /></RequireRole>} />
         <Route path="/admin/users/:id/edit" element={<RequireRole role="admin"><EditUser /></RequireRole>} />
