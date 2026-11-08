@@ -17,6 +17,9 @@ const loginUser = async (req, res) => {
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ message: 'Incorrect email or password' });
         }
+        if (user.active === false) {
+            return res.status(403).json({ message: 'This account has been deactivated. Contact the support team.' });
+        }
         res.json({
             id: user.id,
             name: user.name,
