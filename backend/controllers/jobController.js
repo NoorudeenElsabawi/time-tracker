@@ -279,6 +279,38 @@ const deleteJob = async (req, res) => {
     }
 };
 
+// PUT /api/jobs/:id/notes  (Standard User only) – SCRUM-27
+// A technician records the work performed. Notes can be added and edited until the job is submitted;
+// the status check is part of the update, so notes can't change once the job is locked.
+const NOTES_MAX_LENGTH = 2000;
+const EDITABLE_STATUSES = ['not_started', 'in_progress', 'stopped'];
+
+const saveNotes = async (req, res) => {
+    const { notes } = req.body;
+    if (typeof notes !== 'string') {
+        return res.status(400).json({ message: 'Notes must be text', errors: { notes: 'Notes must be text' } });
+    }
+    if (notes.length > NOTES_MAX_LENGTH) {
+        const message = `Notes can be up to ${NOTES_MAX_LENGTH} characters`;
+        return res.status(400).json({ message, errors: { notes: message } });
+    }
+
+    try {
+        const job = await Job.findOneAndUpdate(
+            { _id: req.params.id, technician: req.user.id, status: { $in: EDITABLE_STATUSES } },
+            { $set: { notes: notes.trim() } },
+            { new: true }
+        ).select(TECHNICIAN_FIELDS).catch(() => null);
+        if (job) return res.json({ job, serverTime: new Date() });
+
+        const existing = await Job.findOne({ _id: req.params.id, technician: req.user.id }).catch(() => null);
+        if (!existing) return res.status(404).json({ message: 'Job not found' });
+        return res.status(409).json({ message: 'This job has been submitted, so its notes can no longer be changed' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
-    createJob, getAllJobs, getMyJobs, getMyJob, getJob, updateJob, deleteJob, timerAction, adminAction,
+    createJob, getAllJobs, getMyJobs, getMyJob, getJob, updateJob, deleteJob, saveNotes, timerAction, adminAction,
 };
