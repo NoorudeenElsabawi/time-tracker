@@ -20,6 +20,9 @@ const formatDuration = (ms) => {
   return `${h}:${m}:${s}`;
 };
 
+const NOTES_MAX_LENGTH = 2000;
+const NOTES_EDITABLE = ['not_started', 'in_progress', 'stopped'];
+
 const formatClock = (date) =>
   new Date(date).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', timeZone: 'Australia/Brisbane' });
 
@@ -34,6 +37,10 @@ const JobTimer = () => {
   // Difference between the server clock and this device's clock, so the display matches server time
   const [clockOffset, setClockOffset] = useState(0);
   const [now, setNow] = useState(Date.now());
+  // SCRUM-27: notes the technician is typing, and whether they have been saved
+  const [notes, setNotes] = useState('');
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesMessage, setNotesMessage] = useState('');
 
   const authHeader = { headers: { Authorization: `Bearer ${user.token}` } };
 
@@ -49,6 +56,7 @@ const JobTimer = () => {
           headers: { Authorization: `Bearer ${user.token}` },
         });
         applyResponse(response.data);
+        setNotes(response.data.job.notes || '');
       } catch (err) {
         setError(err.response?.data?.message || 'Could not load this job. Refresh the page to try again.');
       }
@@ -63,9 +71,36 @@ const JobTimer = () => {
     return () => clearInterval(interval);
   }, [job?.status]);
 
+  const notesChanged = job ? notes.trim() !== (job.notes || '') : false;
+
+  // Returns true if the notes were saved (or there was nothing to save)
+  const saveNotes = async () => {
+    if (!notesChanged) return true;
+    setNotesSaving(true);
+    setNotesMessage('');
+    try {
+      const response = await axiosInstance.put(`/api/jobs/${id}/notes`, { notes }, authHeader);
+      setJob(response.data.job);
+      setNotes(response.data.job.notes || '');
+      setNotesMessage('✓ Notes saved');
+      return true;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not save your notes. Try again.');
+      return false;
+    } finally {
+      setNotesSaving(false);
+    }
+  };
+
   const runAction = async (action) => {
     setBusy(true);
     setError('');
+    // Unsaved notes are saved before submitting, because the job is locked afterwards
+    if (action === 'submit' && !(await saveNotes())) {
+      setBusy(false);
+      setConfirmingSubmit(false);
+      return;
+    }
     try {
       const response = await axiosInstance.post(`/api/jobs/${id}/${action}`, {}, authHeader);
       applyResponse(response.data);
@@ -147,7 +182,8 @@ const JobTimer = () => {
           <div className="bg-white border border-blue-300 rounded-xl p-4">
             <p className="font-medium">Submit this job?</p>
             <p className="text-sm text-gray-500 mt-1">
-              You won&apos;t be able to change the time or resume the timer after submitting.
+              You won&apos;t be able to change the time, notes or resume the timer after submitting.
+              {notesChanged && ' Your unsaved notes will be saved first.'}
             </p>
             <div className="flex gap-3 mt-3">
               <button onClick={() => setConfirmingSubmit(false)} disabled={busy}
@@ -178,6 +214,29 @@ const JobTimer = () => {
       {job.status === 'in_progress' && (
         <p className="text-sm text-gray-500 text-center mt-2">Stop the timer to submit this job</p>
       )}
+
+      <div className="bg-white border border-slate-200 rounded-xl p-4 mt-4">
+        <label htmlFor="notes" className="block text-sm text-gray-500 mb-2">Notes on the work performed</label>
+        {NOTES_EDITABLE.includes(job.status) ? (
+          <>
+            <textarea id="notes" rows={4} maxLength={NOTES_MAX_LENGTH} value={notes}
+              onChange={(e) => { setNotes(e.target.value); setNotesMessage(''); }}
+              placeholder="e.g. Replaced faulty RAM, ran diagnostics, all tests passed."
+              className="w-full p-2 border border-gray-300 rounded" />
+            <div className="flex justify-between items-center mt-2">
+              <span className="text-sm text-gray-500" role="status">
+                {notesMessage || (notesChanged ? 'Unsaved changes' : `${notes.length}/${NOTES_MAX_LENGTH}`)}
+              </span>
+              <button onClick={saveNotes} disabled={!notesChanged || notesSaving}
+                className="px-4 py-2 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50">
+                {notesSaving ? 'Saving…' : 'Save notes'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="text-gray-700 whitespace-pre-line">{job.notes || <span className="text-gray-400">No notes added.</span>}</p>
+        )}
+      </div>
 
       {job.timeSegments.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl mt-4 overflow-hidden">
