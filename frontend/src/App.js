@@ -10,6 +10,7 @@ import JobTimer from './pages/JobTimer';
 import AdminJobReview from './pages/AdminJobReview';
 import AdminUsers from './pages/AdminUsers';
 import CreateUser from './pages/CreateUser';
+import EditUser from './pages/EditUser';
 
 import { useAuth, homePathFor } from './context/AuthContext';
 
@@ -30,6 +31,7 @@ function App() {
         <Route path="/admin/jobs/:id" element={<RequireRole role="admin"><AdminJobReview /></RequireRole>} />
         <Route path="/admin/users" element={<RequireRole role="admin"><AdminUsers /></RequireRole>} />
         <Route path="/admin/users/new" element={<RequireRole role="admin"><CreateUser /></RequireRole>} />
+        <Route path="/admin/users/:id/edit" element={<RequireRole role="admin"><EditUser /></RequireRole>} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>

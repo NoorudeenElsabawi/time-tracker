@@ -49,7 +49,7 @@ const CreateJob = () => {
   useEffect(() => {
     const loadTechnicians = async () => {
       try {
-        const response = await axiosInstance.get('/api/users?role=standard', {
+                const response = await axiosInstance.get('/api/users?role=standard&active=true', {
           headers: { Authorization: `Bearer ${user.token}` },
         });
         setTechnicians(response.data);
