@@ -9,10 +9,12 @@ Built for IFQ636 Assessment 1 by extending the provided Task Manager starter pro
 
 ## Features
 
-**Standard User (technician):** log in, view assigned jobs, start / stop / resume the timer, submit a job.
+**Standard User (technician):** log in, view assigned jobs, start / stop / resume the timer,
+add notes, submit a job (time and notes lock once submitted).
 
-**Administrator (support team):** create jobs, view all jobs, see the labour cost, review and approve
-submitted jobs, create user accounts.
+**Administrator (support team):** create, edit and delete jobs; correct recorded times; see the labour
+cost; review and approve submitted jobs (editing an approved job returns it to Under review);
+create, edit and deactivate user accounts.
 
 **Billing rule:** call-out fee + 15-minute blocks × labour rate. Minimum one block; after that a
 partial block is charged only if it reaches 5 minutes. Applied to the total time across all segments.
@@ -26,7 +28,7 @@ React frontend (port 3000)  →  Express API (port 5001)  →  MongoDB Atlas
 - **Frontend:** React, React Router, axios, Tailwind (`frontend/src`)
 - **Backend:** Node.js, Express, JWT login, role checks in `middleware/authMiddleware.js` (`backend`)
 - **Data:** Mongoose models `User` and `Job`
-- **Tests:** 54 backend tests with Mocha, Chai and Sinon (`backend/test`)
+- **Tests:** 87 backend tests with Mocha, Chai and Sinon (`backend/test`)
 
 ## Local setup
 
@@ -99,5 +101,6 @@ working after the public IP changes. This was tested by stopping and starting th
 - Plain HTTP only (no HTTPS).
 - MongoDB Atlas accepts connections from any IP (protected by password) because the server's IP changes.
 - `npm audit` warnings and a Mongoose `strictQuery` warning come from the starter project's older packages.
-- Not implemented: editing jobs and times, editing or deactivating users, deleting jobs, adding notes.
+- Time segments can be corrected but not added or removed, and approved jobs cannot be deleted.
+- A deactivated user who is still logged in is blocked on their next action but not logged out automatically.
 - Only the backend has automated tests; the frontend was tested manually.
