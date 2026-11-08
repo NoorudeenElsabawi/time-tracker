@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../axiosConfig';
 import StatusBadge from '../components/StatusBadge';
@@ -17,11 +17,12 @@ const segmentMinutes = (seg) =>
 const AdminJobReview = () => {
   const { id } = useParams();
   const { user } = useAuth();
+  const location = useLocation();
   const [job, setJob] = useState(null);
   const [cost, setCost] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState(location.state?.success || '');
 
   useEffect(() => {
     const loadJob = async () => {
@@ -153,6 +154,9 @@ const AdminJobReview = () => {
         {['not_started', 'in_progress', 'stopped'].includes(job.status) && (
           <p className="text-sm text-gray-500 mr-auto">The technician hasn&apos;t submitted this job yet.</p>
         )}
+                <Link to={`/admin/jobs/${id}/edit`} className="px-4 py-2 rounded border border-slate-300 bg-white hover:bg-slate-50">
+          Edit job
+        </Link>
         {job.status === 'submitted' && (
           <button onClick={() => runAction('review')} disabled={busy}
             className="px-4 py-2 rounded border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-60">
