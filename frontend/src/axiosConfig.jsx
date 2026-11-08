@@ -1,10 +1,12 @@
 import axios from 'axios';
 
-// In development the React dev server runs on :3000 and the API on :5001.
-// In a production build the app is served by nginx, which forwards /api
-// to the backend, so requests go to the same address the page came from.
+// Local development: the API runs on localhost:5001.
+// Production build (EC2): the API runs on port 5001 of the same server
+// that served this page, so it keeps working when the public IP changes.
 const baseURL =
-  process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5001';
+  process.env.NODE_ENV === 'production'
+    ? `${window.location.protocol}//${window.location.hostname}:5001`
+    : 'http://localhost:5001';
 
 const axiosInstance = axios.create({
   baseURL,
