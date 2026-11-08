@@ -20,6 +20,11 @@ const protect = async (req, res, next) => {
         return res.status(401).json({ message: 'Not authorized, user not found' });
     }
 
+    // A deactivated account loses access straight away, even with a token issued before deactivation
+    if (user.active === false) {
+        return res.status(401).json({ message: 'This account has been deactivated' });
+    }
+
     req.user = user;
     next();
 };
