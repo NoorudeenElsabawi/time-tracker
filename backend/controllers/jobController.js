@@ -263,4 +263,22 @@ const updateJob = async (req, res) => {
     }
 };
 
-module.exports = { createJob, getAllJobs, getMyJobs, getMyJob, getJob, updateJob, timerAction, adminAction };
+// DELETE /api/jobs/:id  (Administrator only) – SCRUM-23
+// Removes a job created by mistake. Approved jobs are ready for invoicing, so they can't be deleted
+// (edit the job first, which returns it to Under review). The status check is part of the delete itself.
+const deleteJob = async (req, res) => {
+    try {
+        const job = await Job.findOneAndDelete({ _id: req.params.id, status: { $ne: 'approved' } }).catch(() => null);
+        if (job) return res.json({ message: `Job #${job.jobNumber} deleted`, jobNumber: job.jobNumber });
+
+        const existing = await Job.findById(req.params.id).catch(() => null);
+        if (!existing) return res.status(404).json({ message: 'Job not found' });
+        return res.status(409).json({ message: 'Approved jobs cannot be deleted. Edit the job first if it needs to change.' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = {
+    createJob, getAllJobs, getMyJobs, getMyJob, getJob, updateJob, deleteJob, timerAction, adminAction,
+};

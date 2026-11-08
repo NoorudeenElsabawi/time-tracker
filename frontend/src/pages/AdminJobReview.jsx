@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axiosInstance from '../axiosConfig';
 import StatusBadge from '../components/StatusBadge';
@@ -13,16 +13,19 @@ const formatClock = (date) =>
 const segmentMinutes = (seg) =>
   seg.end ? Math.floor((new Date(seg.end) - new Date(seg.start)) / 60000) : null;
 
-// Administrator view of a single job: details, time, cost (SCRUM-29) and review/approve (SCRUM-24).
+// Administrator view of a single job: details, time, cost (SCRUM-29), review/approve (SCRUM-24),
+// editing (SCRUM-22) and deleting (SCRUM-23).
 const AdminJobReview = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [job, setJob] = useState(null);
   const [cost, setCost] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(location.state?.success || '');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     const loadJob = async () => {
@@ -53,6 +56,22 @@ const AdminJobReview = () => {
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong. Try again.');
     } finally {
+      setBusy(false);
+    }
+  };
+
+  // SCRUM-23: delete a job created by mistake, after confirming
+  const deleteJob = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await axiosInstance.delete(`/api/jobs/${id}`, {
+        headers: { Authorization: `Bearer ${user.token}` },
+      });
+      navigate('/admin/jobs', { state: { success: response.data.message } });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not delete the job. Try again.');
+      setConfirmDelete(false);
       setBusy(false);
     }
   };
@@ -144,6 +163,25 @@ const AdminJobReview = () => {
         {job.notes || <span className="text-gray-400">No notes added.</span>}
       </div>
 
+      {confirmDelete && (
+        <div className="mt-6 p-4 rounded border border-red-600 bg-red-50" role="alertdialog" aria-labelledby="delete-title">
+          <p id="delete-title" className="font-medium text-red-800">Delete job #{job.jobNumber}?</p>
+          <p className="text-sm text-red-800 mb-3">
+            The job and its recorded time will be removed for everyone, including the technician. This can&apos;t be undone.
+          </p>
+          <div className="flex gap-3">
+            <button onClick={deleteJob} disabled={busy}
+              className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-60">
+              {busy ? 'Deleting…' : 'Yes, delete job'}
+            </button>
+            <button onClick={() => setConfirmDelete(false)} disabled={busy}
+              className="px-4 py-2 rounded border border-gray-300 bg-white">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap justify-end items-center gap-3 mt-6">
         {job.status === 'approved' && (
           <p className="text-sm text-gray-500 mr-auto">
@@ -154,7 +192,13 @@ const AdminJobReview = () => {
         {['not_started', 'in_progress', 'stopped'].includes(job.status) && (
           <p className="text-sm text-gray-500 mr-auto">The technician hasn&apos;t submitted this job yet.</p>
         )}
-                <Link to={`/admin/jobs/${id}/edit`} className="px-4 py-2 rounded border border-slate-300 bg-white hover:bg-slate-50">
+        {job.status !== 'approved' && !confirmDelete && (
+          <button onClick={() => setConfirmDelete(true)}
+            className="px-4 py-2 rounded border border-red-600 text-red-700 bg-white hover:bg-red-50">
+            Delete job
+          </button>
+        )}
+        <Link to={`/admin/jobs/${id}/edit`} className="px-4 py-2 rounded border border-slate-300 bg-white hover:bg-slate-50">
           Edit job
         </Link>
         {job.status === 'submitted' && (
