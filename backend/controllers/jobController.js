@@ -2,6 +2,7 @@ const Job = require('../models/Job');
 const { JOB_STATUSES } = require('../models/Job');
 const User = require('../models/User');
 const { validateJobInput } = require('../utils/validateJob');
+const { validateTimeSegments } = require('../utils/validateTimes');
 const {
     TIMER_TRANSITIONS, checkTransition, ADMIN_TRANSITIONS, checkAdminTransition,
 } = require('../utils/jobTransitions');
@@ -185,4 +186,81 @@ const adminAction = (action) => async (req, res) => {
     }
 };
 
-module.exports = { createJob, getAllJobs, getMyJobs, getMyJob, getJob, timerAction, adminAction };
+// PUT /api/jobs/:id  (Administrator only) – SCRUM-22
+// Corrects job details and recorded times. Changes are validated before saving.
+// Editing an Approved job sends it back to Under review, so changed figures are approved again.
+const updateJob = async (req, res) => {
+    const errors = validateJobInput(req.body);
+    const { jobNumber, customerName, address, technician, calloutFee, labourRate, timeSegments } = req.body;
+
+    try {
+        const existing = await Job.findById(req.params.id).catch(() => null);
+        if (!existing) return res.status(404).json({ message: 'Job not found' });
+
+        // Times can only be corrected once the technician has stopped the timer
+        const editingTimes = timeSegments !== undefined;
+        if (editingTimes && existing.status === 'in_progress') {
+            return res.status(409).json({ message: 'The timer is running. Times can be edited once the technician stops it.' });
+        }
+        if (editingTimes) {
+            const timeErrors = validateTimeSegments(timeSegments, existing.timeSegments.length);
+            if (Object.keys(timeErrors).length) errors.timeSegments = timeErrors;
+        }
+
+        if (Object.keys(errors).length) {
+            return res.status(400).json({ message: 'Check the highlighted fields and try again.', errors });
+        }
+
+        // A new technician must be an active Standard User; the current one can stay even if since deactivated
+        if (String(technician) !== String(existing.technician)) {
+            const tech = await User.findById(technician).catch(() => null);
+            if (!tech || tech.role !== 'standard' || tech.active === false) {
+                return res.status(400).json({
+                    message: 'Check the highlighted fields and try again.',
+                    errors: { technician: 'Select a valid technician' },
+                });
+            }
+        }
+
+        if (await Job.exists({ jobNumber: jobNumber.trim(), _id: { $ne: existing._id } })) {
+            return res.status(400).json({
+                message: 'Check the highlighted fields and try again.',
+                errors: { jobNumber: 'A job with this number already exists' },
+            });
+        }
+
+        const now = new Date();
+        const changes = {
+            jobNumber: jobNumber.trim(),
+            customerName: customerName.trim(),
+            address: address.trim(),
+            technician,
+            calloutFee: Number(calloutFee),
+            labourRate: Number(labourRate),
+        };
+        if (editingTimes) {
+            changes.timeSegments = timeSegments.map((seg) => ({ start: new Date(seg.start), end: new Date(seg.end) }));
+        }
+
+        const reopened = existing.status === 'approved';
+        if (reopened) {
+            Object.assign(changes, { status: 'under_review', reviewStartedAt: now, approvedAt: null, approvedBy: null });
+        }
+
+        // Only save if the status hasn't changed since we checked it (e.g. the technician started the timer meanwhile)
+        const job = await Job.findOneAndUpdate(
+            { _id: existing._id, status: existing.status },
+            { $set: changes },
+            { new: true, runValidators: true }
+        ).populate(ADMIN_POPULATE);
+        if (!job) {
+            return res.status(409).json({ message: 'This job changed while you were editing it. Reload the page and try again.' });
+        }
+
+        res.json({ job, cost: calculateCost(job, now), serverTime: now, reopened });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { createJob, getAllJobs, getMyJobs, getMyJob, getJob, updateJob, timerAction, adminAction };
