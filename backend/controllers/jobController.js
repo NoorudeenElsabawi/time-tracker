@@ -20,7 +20,7 @@ const createJob = async (req, res) => {
     try {
         // The assigned user must exist and be a Standard User (technician)
         const tech = await User.findById(technician).catch(() => null);
-        if (!tech || tech.role !== 'standard') {
+               if (!tech || tech.role !== 'standard' || tech.active === false) {
             return res.status(400).json({
                 message: 'Check the highlighted fields and try again.',
                 errors: { technician: 'Select a valid technician' },

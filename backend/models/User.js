@@ -7,6 +7,8 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     // Administrator = support team, Standard User = technician
     role: { type: String, enum: ['admin', 'standard'], default: 'standard' },
+    // Deactivated users (e.g. former staff) can no longer log in or use an existing login token
+    active: { type: Boolean, default: true },
     university: { type: String },
     address: { type: String },
 });

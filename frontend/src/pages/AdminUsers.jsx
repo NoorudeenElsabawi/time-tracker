@@ -5,7 +5,7 @@ import axiosInstance from '../axiosConfig';
 
 const ROLE_LABELS = { admin: 'Administrator', standard: 'Standard User' };
 
-// Administrator list of user accounts (SCRUM-18).
+// Administrator list of user accounts (SCRUM-18), with status and edit links (SCRUM-19).
 const AdminUsers = () => {
   const { user } = useAuth();
   const location = useLocation();
@@ -53,15 +53,27 @@ const AdminUsers = () => {
               <th className="px-4 py-3 font-normal">Name</th>
               <th className="px-4 py-3 font-normal">Email</th>
               <th className="px-4 py-3 font-normal">Role</th>
+              <th className="px-4 py-3 font-normal">Status</th>
+              <th className="px-4 py-3 font-normal">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan="3" className="px-4 py-6 text-gray-500">Loading users…</td></tr>}
+            {loading && <tr><td colSpan="5" className="px-4 py-6 text-gray-500">Loading users…</td></tr>}
             {!loading && users.map((u) => (
-              <tr key={u._id} className="border-t border-slate-100">
+              <tr key={u._id} className={`border-t border-slate-100 ${u.active === false ? 'text-gray-400' : ''}`}>
                 <td className="px-4 py-3">{u.name}</td>
                 <td className="px-4 py-3 text-gray-600">{u.email}</td>
                 <td className="px-4 py-3">{ROLE_LABELS[u.role] || u.role}</td>
+                <td className="px-4 py-3">
+                  {u.active === false ? (
+                    <span className="inline-block px-2 py-1 rounded-full text-sm bg-slate-100 text-slate-600">Deactivated</span>
+                  ) : (
+                    <span className="inline-block px-2 py-1 rounded-full text-sm bg-green-100 text-green-800">Active</span>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <Link to={`/admin/users/${u._id}/edit`} className="text-blue-600">Edit</Link>
+                </td>
               </tr>
             ))}
           </tbody>
